@@ -2,8 +2,12 @@ from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, Field, field_validator
 #con kafka
 from uuid import uuid4
-from confluent_kafka import KafkaException
+from confluent_kafka import Consumer,KafkaException
 from kafka_config import publicar_evento
+#pedido listo evento
+import json
+from threading import Thread
+from contextlib import asynccontextmanager
 
 class PedidoEntrada(BaseModel):
     producto: str = Field(min_length=1, max_length=100)
@@ -18,8 +22,18 @@ class PedidoEntrada(BaseModel):
             raise ValueError("El nombre del producto no puede estar vacio")
         
         return producto
+    
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    hilo = Thread(
+        target=escuchar_pedidos_listos,
+        daemon=True
+    )
+    hilo.start()
 
-app = FastAPI(title="CampusBite", description="Es una prueba de swagger con fastapi")
+    yield
+    
+app = FastAPI(title="CampusBite", description="sistma distribuido de pedidos para la cafeteria",lifespan=lifespan)
 #prueba de swwagger con fastapi
 @app.get("/salud", tags=["Salud"])
 def consultar_salud():
@@ -27,18 +41,49 @@ def consultar_salud():
             #clave y valor
             
 pedidos = {}
-claves_indempondencia = {} #este diccionario relacionara cada clave con el pedido que ya fue creado
+claves_idempotencia = {} #este diccionario relacionara cada clave con el pedido que ya fue creado
 
+#consumimos los eventos PedidoListo.
+def escuchar_pedidos_listos():
+    consumidor_estado = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servicio-pedidos","auto.offset.reset": "earliest","enable.auto.commit": False})
+    consumidor_estado.subscribe(["campusbite.pedidos-listos"])
+    
+    print("Servicio de Pedidos esperando eventos PedidoListo...")
+
+    while True:
+        mensaje = consumidor_estado.poll(1.0)
+
+        if mensaje is None:
+            continue
+
+        if mensaje.error():
+            print(f"Error al consumir: {mensaje.error()}")
+            continue
+
+        evento = json.loads(
+            mensaje.value().decode("utf-8")
+        )
+
+        pedido_id = evento["pedidoId"]
+
+        if pedido_id in pedidos:
+            pedidos[pedido_id]["estado"] = evento["estado"]
+            print(f"Pedido {pedido_id} actualizado a LISTO")
+
+        consumidor_estado.commit(
+            message=mensaje,
+            asynchronous=False
+        )
 
 #queremos crear nuestro pedido 
 # Asistido por IA: implementación inicial de Idempotency-Key.
 @app.post("/pedidos", status_code=201, tags=["Pedidos"]) #status code 201 es para indicar que se creo un recurso
 def crear_pedido(pedido: PedidoEntrada, idempotency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
-    if idempotency_key in claves_indempondencia:
-        pedido_id = claves_indempondencia[idempotency_key]
+    if idempotency_key in claves_idempotencia:
+        pedido_id = claves_idempotencia[idempotency_key]
         return pedidos[pedido_id]
-    pedido_id = len(pedidos) + 1 # le asignamos un numero de turno al cliente, si esta vacio es 0, con la formula 0+1=1 se le asigno el turno 1
-    
+    pedido_id = str(uuid4())
+        
     nuevo_pedido = {
         "id": pedido_id,
         "producto": pedido.producto,
@@ -64,14 +109,14 @@ def crear_pedido(pedido: PedidoEntrada, idempotency_key :str = Header(..., alias
         )
 
     pedidos[pedido_id] = nuevo_pedido
-    claves_indempondencia[idempotency_key] = pedido_id
+    claves_idempotencia[idempotency_key] = pedido_id
 
     return nuevo_pedido
 
 
 #queremos consultar sobre nuestro pedido
 @app.get("/pedidos/{pedido_id}/estado", tags=["Pedidos"]) #el {pedido_id} es el numero de pedido asignado al cliente
-def  consultar_estado(pedido_id: int): 
+def  consultar_estado(pedido_id: str):
     if pedido_id not in pedidos:
         raise HTTPException(
             status_code=404, # codigo 404 not found
