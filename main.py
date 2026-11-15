@@ -1,5 +1,9 @@
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel, Field, field_validator
+#con kafka
+from uuid import uuid4
+from confluent_kafka import KafkaException
+from kafka_config import publicar_evento
 
 class PedidoEntrada(BaseModel):
     producto: str = Field(min_length=1, max_length=100)
@@ -29,9 +33,9 @@ claves_indempondencia = {} #este diccionario relacionara cada clave con el pedid
 #queremos crear nuestro pedido 
 # Asistido por IA: implementación inicial de Idempotency-Key.
 @app.post("/pedidos", status_code=201, tags=["Pedidos"]) #status code 201 es para indicar que se creo un recurso
-def crear_pedido(pedido: PedidoEntrada, idempontency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
-    if idempontency_key in claves_indempondencia:
-        pedido_id = claves_indempondencia[idempontency_key]
+def crear_pedido(pedido: PedidoEntrada, idempotency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
+    if idempotency_key in claves_indempondencia:
+        pedido_id = claves_indempondencia[idempotency_key]
         return pedidos[pedido_id]
     pedido_id = len(pedidos) + 1 # le asignamos un numero de turno al cliente, si esta vacio es 0, con la formula 0+1=1 se le asigno el turno 1
     
@@ -41,8 +45,26 @@ def crear_pedido(pedido: PedidoEntrada, idempontency_key :str = Header(..., alia
         "cantidad": pedido.cantidad,
         "estado": "RECIBIDO"
     }
+
+    evento = {
+        "eventId": str(uuid4()),
+        "pedidoId": pedido_id,
+        "tipo": "PedidoCreado",
+        "version": 1,
+        "producto": pedido.producto,
+        "cantidad": pedido.cantidad
+    }
+
+    try:
+        publicar_evento("campusbite.pedidos", evento)
+    except KafkaException:
+        raise HTTPException(
+            status_code=503,
+            detail="Kafka no está disponible"
+        )
+
     pedidos[pedido_id] = nuevo_pedido
-    claves_indempondencia[idempontency_key] = pedido_id
+    claves_indempondencia[idempotency_key] = pedido_id
 
     return nuevo_pedido
 
