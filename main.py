@@ -1,9 +1,19 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Header
+from pydantic import BaseModel, Field, field_validator
 
 class PedidoEntrada(BaseModel):
-    producto: str
-    cantidad: int
+    producto: str = Field(min_length=1, max_length=100)
+    cantidad: int = Field(gt=0, le=100)
+
+    @field_validator("producto")
+    @classmethod
+    def validar_producto(cls, producto:str):
+        producto = producto.strip()
+        
+        if not producto:
+            raise ValueError("El nombre del producto no puede estar vacio")
+        
+        return producto
 
 app = FastAPI(title="CampusBite", description="Es una prueba de swagger con fastapi")
 #prueba de swwagger con fastapi
@@ -13,10 +23,16 @@ def consultar_salud():
             #clave y valor
             
 pedidos = {}
+claves_indempondencia = {} #este diccionario relacionara cada clave con el pedido que ya fue creado
 
-#queremos crear nuestro pedido
+
+#queremos crear nuestro pedido 
+# Asistido por IA: implementación inicial de Idempotency-Key.
 @app.post("/pedidos", status_code=201, tags=["Pedidos"]) #status code 201 es para indicar que se creo un recurso
-def crear_pedido(pedido: PedidoEntrada): #obliga a que el JSON tenga producto y cantidad.
+def crear_pedido(pedido: PedidoEntrada, idempontency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
+    if idempontency_key in claves_indempondencia:
+        pedido_id = claves_indempondencia[idempontency_key]
+        return pedidos[pedido_id]
     pedido_id = len(pedidos) + 1 # le asignamos un numero de turno al cliente, si esta vacio es 0, con la formula 0+1=1 se le asigno el turno 1
     
     nuevo_pedido = {
@@ -26,10 +42,13 @@ def crear_pedido(pedido: PedidoEntrada): #obliga a que el JSON tenga producto y 
         "estado": "RECIBIDO"
     }
     pedidos[pedido_id] = nuevo_pedido
+    claves_indempondencia[idempontency_key] = pedido_id
+
     return nuevo_pedido
 
+
 #queremos consultar sobre nuestro pedido
-@app.get("/pedidos/{pedido_id}", tags=["Pedidos"]) #el {pedido_id} es el numero de pedido asignado al cliente
+@app.get("/pedidos/{pedido_id}/estado", tags=["Pedidos"]) #el {pedido_id} es el numero de pedido asignado al cliente
 def  consultar_estado(pedido_id: int): 
     if pedido_id not in pedidos:
         raise HTTPException(
