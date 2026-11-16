@@ -1,6 +1,6 @@
 import json
 
-from confluent_kafka import Consumer, KafkaException
+from confluent_kafka import Consumer, KafkaError, KafkaException
 
 
 consumidor = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servicio-caja","auto.offset.reset": "earliest","enable.auto.commit": False})
@@ -18,6 +18,9 @@ try:
             continue
 
         if mensaje.error():
+            #el topic aun no existe hasta que la API publique el primer pedido
+            if mensaje.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                continue
             raise KafkaException(mensaje.error())
 
         evento = json.loads(
