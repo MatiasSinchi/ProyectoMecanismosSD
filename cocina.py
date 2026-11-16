@@ -21,7 +21,7 @@ try:
             continue
 
         if mensaje.error():
-            #el topic aun no existe hasta que la API publique el primer pedido
+            # Asistido por IA: el topic aun no existe hasta que la API publique el primer pedido
             if mensaje.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
                 continue
             raise KafkaException(mensaje.error())

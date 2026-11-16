@@ -1,0 +1,22 @@
+Ventas esperando pedidos...
+Venta registrada para pedido 39551331-5c03-44f7-b715-44ec6c693c13: 2 x cafe
+Pedidos procesados: 1
+Unidades vendidas: 2
+  - cafe: 2
+Venta registrada para pedido 0705735b-b26f-41a8-b3cb-6bd3fae54973: 3 x empanada
+Pedidos procesados: 2
+Unidades vendidas: 5
+  - cafe: 2
+  - empanada: 3
+Venta registrada para pedido pedido-dup: 1 x cafe
+Pedidos procesados: 3
+Unidades vendidas: 6
+  - cafe: 3
+  - empanada: 3
+Evento repetido evento-duplicado-1 ignorado
+
+Ventas detenida
+Pedidos procesados: 3
+Unidades vendidas: 6
+  - cafe: 3
+  - empanada: 3

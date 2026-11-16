@@ -1,0 +1,7 @@
+INFO:     127.0.0.1:59632 - "POST /pedidos HTTP/1.1" 201 Created
+Pedido 39551331-5c03-44f7-b715-44ec6c693c13 actualizado a LISTO
+INFO:     127.0.0.1:59634 - "GET /pedidos/39551331-5c03-44f7-b715-44ec6c693c13/estado HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59636 - "POST /pedidos HTTP/1.1" 201 Created
+INFO:     127.0.0.1:59638 - "GET /pedidos/0705735b-b26f-41a8-b3cb-6bd3fae54973/estado HTTP/1.1" 200 OK
+Pedido 0705735b-b26f-41a8-b3cb-6bd3fae54973 actualizado a LISTO
+INFO:     127.0.0.1:59656 - "GET /pedidos/0705735b-b26f-41a8-b3cb-6bd3fae54973/estado HTTP/1.1" 200 OK

@@ -1,0 +1,7 @@
+Caja esperando pedidos...
+Factura generada para pedido 39551331-5c03-44f7-b715-44ec6c693c13: 2 x cafe
+Factura generada para pedido 0705735b-b26f-41a8-b3cb-6bd3fae54973: 3 x empanada
+Factura generada para pedido pedido-dup: 1 x cafe
+Factura generada para pedido pedido-dup: 1 x cafe
+
+Caja detenida
