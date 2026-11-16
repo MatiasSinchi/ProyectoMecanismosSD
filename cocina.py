@@ -10,6 +10,8 @@ consumidor = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servic
 
 consumidor.subscribe(["campusbite.pedidos"])
 
+eventos_procesados = set() #eventId ya preparados, para no cocinar dos veces el mismo pedido
+
 print("Cocina esperando pedidos...")
 
 
@@ -29,6 +31,12 @@ try:
         evento = json.loads(mensaje.value().decode("utf-8"))
         pedido_id = evento["pedidoId"]
 
+        # Asistido por IA: control de eventos repetidos con eventId.
+        if evento["eventId"] in eventos_procesados:
+            print(f"Evento repetido {evento['eventId']} ignorado")
+            consumidor.commit(message=mensaje, asynchronous=False)
+            continue
+
         print(f"Preparando pedido {pedido_id}...")
         time.sleep(3)
 
@@ -44,6 +52,8 @@ try:
             "campusbite.pedidos-listos",
             evento_listo
         )
+
+        eventos_procesados.add(evento["eventId"])
 
         consumidor.commit(
             message=mensaje,

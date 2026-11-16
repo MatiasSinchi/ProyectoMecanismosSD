@@ -28,7 +28,9 @@ Cada servicio consume con su propio `group.id` (`servicio-cocina`, `servicio-caj
 Se publicó dos veces en `campusbite.pedidos` el mismo evento, con `eventId = evento-duplicado-1`, para simular una entrega duplicada de Kafka.
 
 - **Ventas:** lo contó una sola vez y la segunda vez mostró `Evento repetido evento-duplicado-1 ignorado`. ✅
-- **Cocina y Caja:** lo procesaron dos veces, porque no controlan el `eventId`. Queda pendiente aplicarles el mismo control.
+- **Cocina y Caja:** lo procesaron dos veces, porque no controlaban el `eventId`.
+
+**Corrección:** se agregó el mismo control de `eventId` a `cocina.py` y `caja.py`. Al repetir la prueba con `eventId = evento-duplicado-2`, los tres servicios procesaron el evento una sola vez y en la segunda entrega mostraron `Evento repetido evento-duplicado-2 ignorado` (ver [duplicados-corregido.txt](capturas/duplicados-corregido.txt)). ✅
 
 ### Prueba extra: cierre con Control + C en Ventas
 
@@ -70,9 +72,10 @@ Salida de cada servicio durante la prueba:
 - [cocina-2.txt](capturas/cocina-2.txt): Cocina después de reiniciarla, recuperando el pedido B
 - [caja.txt](capturas/caja.txt): facturas generadas
 - [ventas.txt](capturas/ventas.txt): ventas, control de duplicados y resumen final
+- [duplicados-corregido.txt](capturas/duplicados-corregido.txt): Cocina, Caja y Ventas ignorando el evento repetido tras la corrección
 
 ## Conclusión
 
-Kafka conserva los mensajes y el offset confirmado de cada grupo de consumidores. Por eso, que un servicio se caiga no afecta a los demás, y al volver procesa lo que quedó pendiente. Como el commit se hace después de procesar, la entrega es *al menos una vez* (at-least-once). Eso puede producir duplicados, y Ventas los descarta con el `eventId`.
+Kafka conserva los mensajes y el offset confirmado de cada grupo de consumidores. Por eso, que un servicio se caiga no afecta a los demás, y al volver procesa lo que quedó pendiente. Como el commit se hace después de procesar, la entrega es *al menos una vez* (at-least-once). Eso puede producir duplicados, y los tres consumidores los descartan con el `eventId`.
 
-**Limitación:** los `eventId` vistos y los totales de Ventas se guardan en memoria. Si se reinicia Ventas, los contadores empiezan de cero y no reprocesa los eventos ya confirmados.
+**Limitación:** los `eventId` vistos (en los tres servicios) y los totales de Ventas se guardan en memoria. Si un servicio se reinicia, olvida qué eventos ya procesó. Normalmente no importa, porque Kafka no vuelve a entregar los mensajes ya confirmados. El único caso no cubierto es que el servicio se caiga justo entre procesar un mensaje y confirmarlo: al volver, ese mensaje se procesa otra vez. Para cubrirlo habría que guardar los `eventId` en una base de datos o en un archivo.

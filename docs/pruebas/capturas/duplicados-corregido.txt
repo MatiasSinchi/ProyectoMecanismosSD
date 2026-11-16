@@ -1,0 +1,28 @@
+--- cocina.py
+Cocina esperando pedidos...
+Preparando pedido pedido-dup-2...
+Pedido pedido-dup-2 terminado y publicado
+Evento repetido evento-duplicado-2 ignorado
+
+Cocina detenida
+
+--- caja.py
+Caja esperando pedidos...
+Factura generada para pedido pedido-dup-2: 1 x te
+Evento repetido evento-duplicado-2 ignorado
+
+Caja detenida
+
+--- ventas.py
+Ventas esperando pedidos...
+Venta registrada para pedido pedido-dup-2: 1 x te
+Pedidos procesados: 1
+Unidades vendidas: 1
+  - te: 1
+Evento repetido evento-duplicado-2 ignorado
+
+Ventas detenida
+Pedidos procesados: 1
+Unidades vendidas: 1
+  - te: 1
+
