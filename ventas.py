@@ -5,7 +5,8 @@ from confluent_kafka import Consumer, KafkaError, KafkaException
 
 
 # Asistido por IA: estructura del servicio de ventas y control de eventos repetidos.
-consumidor = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servicio-ventas","auto.offset.reset": "earliest","enable.auto.commit": False})
+# Asistido por IA: conectar solo por IPv4, Kafka no escucha en ::1 y el intento por IPv6 llena la consola de errores
+consumidor = Consumer({"bootstrap.servers": "localhost:9092","broker.address.family": "v4","group.id": "servicio-ventas","auto.offset.reset": "earliest","enable.auto.commit": False})
 
 consumidor.subscribe(["campusbite.pedidos"])
 

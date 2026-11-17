@@ -3,7 +3,8 @@ import json
 from confluent_kafka import KafkaException, Producer
 
 
-productor = Producer({"bootstrap.servers": "localhost:9092","message.timeout.ms": 2000})
+# Asistido por IA: conectar solo por IPv4, Kafka no escucha en ::1 y el intento por IPv6 llena la consola de errores
+productor = Producer({"bootstrap.servers": "localhost:9092","broker.address.family": "v4","message.timeout.ms": 2000})
 
 # asistido por ia: la configuración inicial del productor Kafka.
 def publicar_evento(topic: str, evento: dict):

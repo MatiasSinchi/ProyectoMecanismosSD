@@ -18,12 +18,13 @@ Registro de las consultas hechas a herramientas de IA durante el proyecto. En el
 | 2026-11-16 | Matias Sinchi | Claude Code | ¿Cómo comprobar que Idempotency-Key evita pedidos duplicados y en qué casos puede fallar? | Explicación de cómo verificar los eventos publicados con `kafka-get-offsets.sh` y de los casos límite (clave reutilizada con otro cuerpo, concurrencia, reinicio, Kafka caído). La prueba reveló una condición de carrera con peticiones simultáneas; apoyo en la documentación de la prueba | `docs/pruebas/prueba-idempotency-key.md`, `docs/pruebas/capturas/` |
 | 2026-11-16 | Matias Sinchi | Claude Code | ¿Cómo evitar que dos peticiones simultáneas con la misma Idempotency-Key creen dos pedidos? | Explicación de la condición de carrera entre comprobar y guardar la clave, y de por qué un candado por clave es mejor que uno global; propuesta de candado por clave, comparación del cuerpo (422) y respuesta 200 en reintentos, aplicada en `main.py` y verificada repitiendo la prueba | `main.py`, `docs/pruebas/prueba-idempotency-key.md`, `docs/adr/`, `docs/arquitectura.md` |
 | 2026-11-16 | Matias Sinchi | Claude Code | ¿Qué aspectos conviene incluir en una reflexión sobre el uso de IA en el proyecto? | Sugerencia de estructura (uso, verificación, errores de la IA, qué no se delegó, aprendizajes) a partir del historial del proyecto; apoyo en la redacción | `docs/bitacora-ia.md` |
+| 2026-11-16 | Matias Sinchi | Claude Code | ¿Por qué la consola muestra `Connect to ipv6#[::1]:9092 failed` aunque todo funciona y cómo evitarlo? | Explicación de que `localhost` resuelve a IPv6 e IPv4 y Kafka solo escucha en IPv4; propuesta de `broker.address.family: v4` en todos los clientes de Kafka, verificada (7 mensajes → 0) | `kafka_config.py`, `main.py`, `cocina.py`, `caja.py`, `ventas.py` |
 
 ## Reflexión final
 
 ### Cómo se usó la IA
 
-Se usó Claude Code en 14 consultas a lo largo del proyecto, sobre todo para tres cosas:
+Se usó Claude Code en 15 consultas a lo largo del proyecto, sobre todo para tres cosas:
 
 - **Entender conceptos** de sistemas distribuidos que aparecían al construir el sistema: grupos de consumidores y offsets en Kafka, entrega *at-least-once*, consumidores idempotentes, condiciones de carrera y consistencia eventual.
 - **Diagnosticar problemas**, por ejemplo la caída de `cocina.py` y `caja.py` cuando el topic no existía, o por qué se duplicaban las facturas.

@@ -3,7 +3,8 @@ import json
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
 
-consumidor = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servicio-caja","auto.offset.reset": "earliest","enable.auto.commit": False})
+# Asistido por IA: conectar solo por IPv4, Kafka no escucha en ::1 y el intento por IPv6 llena la consola de errores
+consumidor = Consumer({"bootstrap.servers": "localhost:9092","broker.address.family": "v4","group.id": "servicio-caja","auto.offset.reset": "earliest","enable.auto.commit": False})
 
 consumidor.subscribe(["campusbite.pedidos"])
 
