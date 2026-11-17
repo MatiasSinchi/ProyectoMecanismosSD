@@ -1,4 +1,7 @@
 # CampusBite
+Integrantes: Matias Sinchi, Alex Paucar 
+link video explicativo:
+https://youtu.be/tzr9WFUGofo 
 
 Sistema distribuido de pedidos para la cafetería, con FastAPI y Kafka.
 
