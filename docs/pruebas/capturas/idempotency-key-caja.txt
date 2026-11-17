@@ -1,0 +1,13 @@
+Caja esperando pedidos...
+Factura generada para pedido 11590b89-ab5e-4765-9a45-83218fb468ea: 2 x cafe
+Factura generada para pedido 697852cb-c94d-4391-a627-56cb34354261: 2 x cafe
+Factura generada para pedido b9db99ec-8eee-4d9a-b59a-2af02b1268fb: 1 x te
+Factura generada para pedido 5b56f97c-6897-44de-b947-4b4772160ef2: 1 x te
+Factura generada para pedido 26d24ab9-ab52-44ab-afbd-92468ee0277c: 1 x te
+Factura generada para pedido b83171ff-5181-4bfd-bd7a-a737fa411e41: 1 x te
+Factura generada para pedido 48ee3201-6920-40d5-b9b9-197112644c76: 1 x te
+Factura generada para pedido c95385e1-aec3-40ab-af1b-d61699dbcdff: 1 x te
+Factura generada para pedido fdcb3ebb-d38c-42e0-8753-836a15dd4689: 1 x te
+Factura generada para pedido 538a3b61-afac-4ba0-9a78-b07e8a56c572: 1 x te
+Factura generada para pedido b90abc48-ccef-4f73-b9c5-1e4fde3a2ad8: 1 x te
+Factura generada para pedido ac686ec1-616d-400b-bf5b-1ec127c1e912: 1 x te

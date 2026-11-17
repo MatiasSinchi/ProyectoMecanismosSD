@@ -1,0 +1,54 @@
+## Caso 1: primera petición con clave nueva
+eventos en campusbite.pedidos antes: 0
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"cafe","cantidad":2}
+{"id":"11590b89-ab5e-4765-9a45-83218fb468ea","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 1
+
+## Caso 2: reintento con la misma clave y el mismo cuerpo
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"cafe","cantidad":2}
+{"id":"11590b89-ab5e-4765-9a45-83218fb468ea","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"cafe","cantidad":2}
+{"id":"11590b89-ab5e-4765-9a45-83218fb468ea","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 1
+
+## Caso 3: misma compra con otra clave (pedido legítimo distinto)
+$ POST /pedidos  Idempotency-Key: pedido-cafe-002  {"producto":"cafe","cantidad":2}
+{"id":"697852cb-c94d-4391-a627-56cb34354261","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 2
+
+## Caso 4: misma clave con otro cuerpo
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"empanada","cantidad":5}
+{"id":"11590b89-ab5e-4765-9a45-83218fb468ea","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 2
+
+## Caso 5: sin header Idempotency-Key
+{"detail":[{"type":"missing","loc":["header","Idempotency-Key"],"msg":"Field required","input":null}]}  [HTTP 422]
+
+## Caso 7: 10 peticiones simultáneas con la misma clave
+eventos antes: 2
+$ 10 x POST /pedidos en paralelo  Idempotency-Key: pedido-concurrente-001  {"producto":"te","cantidad":1}
+ids distintos devueltos: 10
+eventos después: 12
+
+## Caso 6: header Idempotency-Key con valor vacío
+$ POST /pedidos  Idempotency-Key: (vacío)
+{"detail":[{"type":"string_too_short","loc":["header","Idempotency-Key"],"msg":"String should have at least 1 character","input":"","ctx":{"min_length":1}}]}  [HTTP 422]
+
+## Caso 8: Kafka caído y reintento con la misma clave
+(Kafka detenido)
+$ POST /pedidos  Idempotency-Key: pedido-sin-kafka-001  {"producto":"jugo","cantidad":1}
+{"detail":"Kafka no está disponible"}  [HTTP 503]
+(Kafka iniciado de nuevo)
+eventos antes del reintento: 12
+$ POST /pedidos  Idempotency-Key: pedido-sin-kafka-001  {"producto":"jugo","cantidad":1}
+{"id":"7d5cd37b-f454-4b11-a7c2-1bf7b29fef20","producto":"jugo","cantidad":1,"estado":"RECIBIDO"}  [HTTP 201]
+$ POST /pedidos  Idempotency-Key: pedido-sin-kafka-001  {"producto":"jugo","cantidad":1}
+{"id":"7d5cd37b-f454-4b11-a7c2-1bf7b29fef20","producto":"jugo","cantidad":1,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 13
+
+## Caso 9: reintento después de reiniciar la API
+$ POST /pedidos  Idempotency-Key: pedido-reinicio-001  {"producto":"cafe","cantidad":1}
+{"id":"2dbd592c-0677-44d3-9062-20caf62a49da","producto":"cafe","cantidad":1,"estado":"RECIBIDO"}  [HTTP 201]
+(API reiniciada)
+$ POST /pedidos  Idempotency-Key: pedido-reinicio-001  {"producto":"cafe","cantidad":1}
+{"id":"19accf99-02cf-4437-bd88-29e1e35258ec","producto":"cafe","cantidad":1,"estado":"RECIBIDO"}  [HTTP 201]
