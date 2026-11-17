@@ -8,6 +8,8 @@ POST /pedidos → [campusbite.pedidos] → cocina.py → [campusbite.pedidos-lis
                                      ↘ ventas.py (estadísticas de ventas)
 ```
 
+La arquitectura completa (componentes, eventos, flujo y decisiones) está en [docs/arquitectura.md](docs/arquitectura.md).
+
 ## Instalación
 
 ```bash
