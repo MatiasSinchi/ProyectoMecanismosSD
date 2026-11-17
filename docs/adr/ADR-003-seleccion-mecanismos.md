@@ -38,7 +38,12 @@ Este ADR registra qué mecanismo se eligió para cada problema y por qué.
 
 ### 3. Idempotencia en la API: header `Idempotency-Key`
 
-El cliente genera una clave única por intento lógico de pedido y la envía en cada reintento. El servidor guarda `clave → pedidoId` y, si la clave se repite, devuelve el pedido original sin crear otro ni publicar otro evento.
+El cliente genera una clave única por intento lógico de pedido y la envía en cada reintento. El servidor guarda `clave → pedidoId` y, si la clave se repite:
+
+- con el mismo cuerpo, devuelve el pedido original con **200**, sin crear otro ni publicar otro evento;
+- con otro cuerpo, responde **422**.
+
+Cada clave tiene su propio candado (`threading.Lock`), así que dos peticiones simultáneas con la misma clave se atienden de una en una y solo la primera crea el pedido. Las peticiones con claves distintas no se bloquean entre sí.
 
 | Alternativa | Por qué se descartó |
 |---|---|
@@ -128,8 +133,7 @@ Los consumidores ignoran `UNKNOWN_TOPIC_OR_PART` mientras el topic todavía no e
   - **API:** un reintento después de reiniciar crearía otro pedido.
 
   La solución sería guardarlos en Redis o en una base de datos, con expiración.
-- **`Idempotency-Key` no es atómica:** dos peticiones simultáneas con la misma clave pueden pasar ambas la comprobación. Haría falta un *lock* o una inserción única en base de datos.
-- **No se valida que la clave corresponda al mismo cuerpo:** reutilizar una clave con otro producto devuelve el pedido original sin error. Lo correcto sería responder 422 o 409.
+- **El candado por clave solo funciona dentro de un proceso:** con varias instancias de la API haría falta una reserva atómica compartida, por ejemplo `SET NX` en Redis o una inserción única en base de datos.
 - **Hueco entre publicar y responder:** si Kafka confirma después de los 2 s de espera, la API responde 503 pero el evento sí existe. El *Transactional Outbox* lo resolvería.
 - **El campo `version` no se usa** para descartar eventos viejos o desordenados.
 

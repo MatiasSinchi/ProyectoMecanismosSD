@@ -24,14 +24,14 @@ El Servicio de Pedidos (`main.py`) expone una **API REST sobre HTTP con JSON**, 
 | Método | Ruta | Uso | Códigos |
 |---|---|---|---|
 | `GET` | `/salud` | Comprobar que el servicio responde | 200 |
-| `POST` | `/pedidos` | Crear un pedido | 201, 422, 503 |
+| `POST` | `/pedidos` | Crear un pedido | 201, 200, 422, 503 |
 | `GET` | `/pedidos/{pedido_id}/estado` | Consultar el estado | 200, 404 |
 
 Criterios de diseño:
 
 - **Recursos y verbos HTTP:** el pedido es el recurso. `POST` lo crea y `GET` lo lee, sin efectos secundarios.
 - **Códigos de estado con significado:**
-  - `201 Created` al crear;
+  - `201 Created` al crear y `200 OK` si es un reintento con la misma `Idempotency-Key`;
   - `404 Not Found` si el pedido no existe;
   - `422 Unprocessable Content` si los datos son inválidos;
   - `503 Service Unavailable` si Kafka no confirma el evento. Así el cliente sabe que el fallo es temporal y puede reintentar.

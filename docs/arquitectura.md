@@ -69,7 +69,7 @@ El sistema combina dos estilos de comunicación. La justificación está en los 
 | Método | Ruta | Descripción | Respuestas |
 |---|---|---|---|
 | `GET` | `/salud` | Comprueba que el servicio está vivo | 200 |
-| `POST` | `/pedidos` | Crea un pedido. Requiere el header `Idempotency-Key` | 201 creado · 422 datos inválidos o falta el header · 503 Kafka no disponible |
+| `POST` | `/pedidos` | Crea un pedido. Requiere el header `Idempotency-Key` | 201 creado · 200 reintento con la misma clave · 422 datos inválidos, falta el header o la clave ya se usó con otro pedido · 503 Kafka no disponible |
 | `GET` | `/pedidos/{pedido_id}/estado` | Consulta el estado del pedido | 200 · 404 no existe |
 
 El cuerpo de `POST /pedidos` es `{"producto": str (1–100 caracteres), "cantidad": int (1–100)}`.
@@ -133,7 +133,7 @@ Estados de un pedido: `RECIBIDO` → `LISTO`.
 | **Publicación-suscripción con grupos de consumidores** | Un `group.id` distinto por servicio | Cada servicio recibe todos los pedidos y lleva su propio avance |
 | **Confirmación manual del offset** (`enable.auto.commit: False`) | Los 4 consumidores | El mensaje se confirma **después** de procesarlo, así un fallo a mitad no pierde el pedido (*at-least-once*) |
 | **Consumidores idempotentes** (`eventId`) | Cocina, Caja y Ventas | Ignoran los eventos repetidos que trae *at-least-once*. En el Servicio de Pedidos, poner `LISTO` es idempotente por naturaleza |
-| **Idempotency-Key** | `POST /pedidos` | Si el cliente reintenta la misma petición, recibe el pedido original en lugar de crear otro |
+| **Idempotency-Key** con un candado por clave | `POST /pedidos` | Si el cliente reintenta la misma petición, aunque sea en paralelo, recibe el pedido original en lugar de crear otro |
 | **Confirmación de entrega del productor** | `kafka_config.py` | La API solo responde 201 cuando Kafka confirmó el evento; si no, responde 503 y el pedido no se guarda |
 | **Identificadores globales (UUID)** | `pedidoId` y `eventId` | Se generan sin coordinarse con otros nodos y no chocan |
 | **Validación en el borde** | Pydantic en `main.py` | Los datos inválidos se rechazan con 422 antes de llegar a Kafka |
@@ -177,7 +177,7 @@ Cada servicio es un proceso independiente y todos se conectan al broker en `loca
 
 - **El estado vive en memoria.** Los pedidos, las claves de idempotencia, los `eventId` vistos y los totales de Ventas se pierden al reiniciar un servicio. En producción irían en una base de datos.
 - **Un solo broker y una partición.** No hay replicación: si el contenedor de Kafka se borra, se pierden los eventos.
-- **Idempotency-Key no es atómica.** Si llegan dos peticiones simultáneas con la misma clave, ambas pueden crear un pedido.
+- **El candado de Idempotency-Key es local al proceso.** Con varias instancias de la API, dos peticiones simultáneas con la misma clave en instancias distintas podrían crear dos pedidos.
 - **Hueco entre publicar y responder.** Si Kafka confirma después de los 2 s de espera, la API responde 503 aunque el evento sí se publicó. En ese caso los consumidores procesan un pedido que la API no tiene guardado.
 - **El campo `version` no se usa** para descartar eventos desordenados.
 - **No hay estado intermedio** como `EN_PREPARACION`.

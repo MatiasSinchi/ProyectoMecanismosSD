@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Response
 from pydantic import BaseModel, Field, field_validator
 #con kafka
 from uuid import uuid4
@@ -6,7 +6,7 @@ from confluent_kafka import Consumer,KafkaException
 from kafka_config import publicar_evento
 #pedido listo evento
 import json
-from threading import Thread
+from threading import Thread, Lock
 from contextlib import asynccontextmanager
 
 class PedidoEntrada(BaseModel):
@@ -43,6 +43,16 @@ def consultar_salud():
 pedidos = {}
 claves_idempotencia = {} #este diccionario relacionara cada clave con el pedido que ya fue creado
 
+# Asistido por IA: un candado por clave para que dos peticiones simultaneas con la misma clave no creen dos pedidos.
+candado_general = Lock() #protege el diccionario de candados
+candados_por_clave = {}
+
+def obtener_candado(clave: str):
+    with candado_general:
+        if clave not in candados_por_clave:
+            candados_por_clave[clave] = Lock()
+        return candados_por_clave[clave]
+
 #consumimos los eventos PedidoListo.
 def escuchar_pedidos_listos():
     consumidor_estado = Consumer({"bootstrap.servers": "localhost:9092","group.id": "servicio-pedidos","auto.offset.reset": "earliest","enable.auto.commit": False})
@@ -78,10 +88,26 @@ def escuchar_pedidos_listos():
 #queremos crear nuestro pedido 
 # Asistido por IA: implementación inicial de Idempotency-Key.
 @app.post("/pedidos", status_code=201, tags=["Pedidos"]) #status code 201 es para indicar que se creo un recurso
-def crear_pedido(pedido: PedidoEntrada, idempotency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
+def crear_pedido(pedido: PedidoEntrada, response: Response, idempotency_key :str = Header(..., alias="Idempotency-Key",min_length=1)): #obliga a que el JSON tenga producto y cantidad.
+    #solo una peticion por clave a la vez: las demas esperan y luego encuentran el pedido ya creado
+    with obtener_candado(idempotency_key):
+        return crear_pedido_unico(pedido, response, idempotency_key)
+
+
+def crear_pedido_unico(pedido: PedidoEntrada, response: Response, idempotency_key: str):
     if idempotency_key in claves_idempotencia:
         pedido_id = claves_idempotencia[idempotency_key]
-        return pedidos[pedido_id]
+        pedido_guardado = pedidos[pedido_id]
+
+        # Asistido por IA: la clave ya se uso con otro contenido, no se devuelve un pedido distinto al solicitado
+        if pedido_guardado["producto"] != pedido.producto or pedido_guardado["cantidad"] != pedido.cantidad:
+            raise HTTPException(
+                status_code=422,
+                detail="La Idempotency-Key ya se uso con otro pedido"
+            )
+
+        response.status_code = 200 #no se creo nada nuevo, se devuelve el pedido existente
+        return pedido_guardado
     pedido_id = str(uuid4())
         
     nuevo_pedido = {

@@ -1,0 +1,26 @@
+## Caso 1: primera petición con clave nueva
+eventos antes: 0
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"cafe","cantidad":2}
+{"id":"6975ce3e-abff-48c1-9c18-010834084aac","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 201]
+eventos después: 1
+
+## Caso 2: reintento con la misma clave y el mismo cuerpo
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"cafe","cantidad":2}
+{"id":"6975ce3e-abff-48c1-9c18-010834084aac","producto":"cafe","cantidad":2,"estado":"RECIBIDO"}  [HTTP 200]
+eventos después: 1
+
+## Caso 4: misma clave con otro cuerpo
+$ POST /pedidos  Idempotency-Key: pedido-cafe-001  {"producto":"empanada","cantidad":5}
+{"detail":"La Idempotency-Key ya se uso con otro pedido"}  [HTTP 422]
+eventos después: 1
+
+## Caso 7: 10 peticiones simultáneas con la misma clave
+eventos antes: 1
+$ 10 x POST /pedidos en paralelo  Idempotency-Key: pedido-concurrente-001  {"producto":"te","cantidad":1}
+ids distintos devueltos: 1
+códigos HTTP: 9 x 200  1 x 201  
+eventos después: 2
+
+## Caso 7b: 10 peticiones simultáneas con claves distintas
+eventos antes: 2
+eventos después: 12

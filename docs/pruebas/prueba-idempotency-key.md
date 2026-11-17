@@ -78,8 +78,30 @@ Reutilizar una clave con otro contenido devuelve el pedido original con 201, sin
 
 **Detalle menor:** el reintento responde **201 Created**, aunque no se creó nada nuevo. Sería más preciso responder **200 OK**.
 
+## Corrección y nueva prueba
+
+Se modificó `crear_pedido` en `main.py`:
+
+1. **Un candado por clave:** `obtener_candado(clave)` devuelve un `threading.Lock` propio de cada `Idempotency-Key`. Todo el proceso (comprobar la clave → publicar en Kafka → guardar) ocurre con ese candado tomado. Una segunda petición con la misma clave espera a que termine la primera y entonces encuentra el pedido ya creado. Las peticiones con claves distintas no se bloquean entre sí.
+2. **Comparación del cuerpo:** si la clave ya existe pero el producto o la cantidad son distintos, se responde **422** `La Idempotency-Key ya se uso con otro pedido`.
+3. **200 en los reintentos:** si la clave ya existe con el mismo cuerpo, se devuelve el pedido con **200 OK** en lugar de 201.
+
+Se repitieron los casos afectados con un Kafka limpio:
+
+| # | Caso | Antes | Después | Eventos en Kafka | |
+|---|------|-------|---------|------------------|---|
+| 1 | Primera petición | 201 | 201 | 0 → 1 | ✅ |
+| 2 | Reintento con el mismo cuerpo | 201, mismo pedido | **200**, mismo pedido | 1 → 1 | ✅ |
+| 4 | Misma clave con otro cuerpo | 201 con el pedido original | **422** `La Idempotency-Key ya se uso con otro pedido` | 1 → 1 | ✅ |
+| 7 | 10 peticiones simultáneas con la misma clave | 10 pedidos, 10 eventos, 10 facturas | **1 pedido** (1 × 201 y 9 × 200), 1 evento, 1 factura | 1 → 2 | ✅ |
+| 7b | 10 peticiones simultáneas con claves distintas | — | 10 pedidos, sin bloquearse entre sí | 2 → 12 | ✅ |
+
+Salidas completas: [idempotency-key-corregido.txt](capturas/idempotency-key-corregido.txt) y [idempotency-key-corregido-caja.txt](capturas/idempotency-key-corregido-caja.txt).
+
+El caso 9 (reinicio de la API) sigue sin resolverse, porque las claves continúan en memoria. Lo mismo pasaría con varias instancias de la API, ya que el candado es local a cada proceso. Ambos casos requieren un almacenamiento compartido como Redis.
+
 ## Conclusión
 
 `Idempotency-Key` cumple su objetivo en el caso principal: **reintentos secuenciales de un cliente**, como los que provoca una red inestable. Además se comporta bien cuando Kafka falla.
 
-En cambio, la prueba demostró que **no protege frente a peticiones concurrentes ni frente a reinicios de la API**. Son los riesgos ya anotados en el [ADR-003](../adr/ADR-003-seleccion-mecanismos.md), ahora confirmados con evidencia. El caso 7 es el más importante de corregir, porque un cliente con *timeout* corto lo provoca fácilmente.
+La primera ejecución demostró que **no protegía frente a peticiones concurrentes**, un riesgo que ya estaba anotado en el [ADR-003](../adr/ADR-003-seleccion-mecanismos.md). Con el candado por clave y la comparación del cuerpo, los casos 4 y 7 quedaron resueltos. Sigue pendiente la persistencia de las claves (caso 9), que requiere Redis o una base de datos.
